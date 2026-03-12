@@ -1,0 +1,19 @@
+# Skill installation artifacts (created by `npx skills add`)
+.agents/
+.augment/
+.claude/
+.continue/
+.cursor/
+.goose/
+.kiro/
+.vibe/
+skills/
+
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
