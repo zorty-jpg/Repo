@@ -1,15 +1,15 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
-const PINK="#ff2d78",RATIO_PAD={0:"125%",1:"177.78%",2:"125%"},INDEX_KEY="ig_v4_index",ACTIVE_KEY="ig_v4_active";
+import { supabase } from "@/lib/supabase";
+const PINK="#ff2d78",RATIO_PAD={0:"125%",1:"177.78%",2:"125%"};
 const IMG_DIM=800,IMG_Q=0.68,AV_DIM=300,AV_Q=0.80,HL_DIM=200,HL_Q=0.78;
-const pKey=(id: string)=>`ig_v4_p_${id}`;
-async function loadIndex(){try{const r=localStorage.getItem(INDEX_KEY);return r?JSON.parse(r):null;}catch{return null;}}
-async function saveIndex(idx: {id:string,name:string}[]){try{localStorage.setItem(INDEX_KEY,JSON.stringify(idx));}catch{}}
-async function loadProfile(id: string){try{const r=localStorage.getItem(pKey(id));return r?JSON.parse(r):null;}catch{return null;}}
-async function saveProfile(p: Profile){try{localStorage.setItem(pKey(p.id),JSON.stringify(p));}catch{}}
-async function deleteStoredProfile(id: string){try{localStorage.removeItem(pKey(id));}catch{}}
-async function loadActiveId(){try{return localStorage.getItem(ACTIVE_KEY);}catch{return null;}}
-async function saveActiveId(id: string){try{localStorage.setItem(ACTIVE_KEY,id);}catch{}}
+async function loadIndex(){try{const {data}=await supabase.from("ig_app_state").select("value").eq("key","index").single();return data?.value?JSON.parse(data.value):null;}catch{return null;}}
+async function saveIndex(idx:{id:string,name:string}[]){try{await supabase.from("ig_app_state").upsert({key:"index",value:JSON.stringify(idx)});}catch{}}
+async function loadProfile(id:string){try{const {data}=await supabase.from("ig_profiles").select("data").eq("id",id).single();return data?.data??null;}catch{return null;}}
+async function saveProfile(p:Profile){try{await supabase.from("ig_profiles").upsert({id:p.id,name:p.name,data:p,updated_at:new Date().toISOString()});}catch{}}
+async function deleteStoredProfile(id:string){try{await supabase.from("ig_profiles").delete().eq("id",id);}catch{}}
+async function loadActiveId(){try{const {data}=await supabase.from("ig_app_state").select("value").eq("key","active_id").single();return data?.value??null;}catch{return null;}}
+async function saveActiveId(id:string){try{await supabase.from("ig_app_state").upsert({key:"active_id",value:id});}catch{}}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface HighlightItem {id:number;label:string;img:string|null;}
@@ -176,10 +176,25 @@ export default function IGGridPlanner(){
   useEffect(()=>{chatEnd.current?.scrollIntoView({behavior:"smooth"});},[msgs,aiLoading]);
   useEffect(()=>{
     (async()=>{
-      const migrated=await migrateIfNeeded();const idx=await loadIndex();const storedActive=await loadActiveId();
-      if(idx&&idx.length){const loaded=(await Promise.all(idx.map(({id}:{id:string})=>loadProfile(id)))).filter(Boolean) as Profile[];if(loaded.length){setProfiles(loaded);const aid=storedActive&&loaded.find(p=>p.id===storedActive)?storedActive:loaded[0].id;setActiveId(aid);const sizes:Record<string,number>={};loaded.forEach(p=>{sizes[p.id]=calcBytes(p);});setProfileSizes(sizes);setUsedBytes(sizes[aid]||0);if(migrated)setMigrationMsg("✦ DATA MIGRATED");return;}}
+      const idx=await loadIndex();const storedActive=await loadActiveId();
+      if(idx&&idx.length){const loaded=(await Promise.all(idx.map(({id}:{id:string})=>loadProfile(id)))).filter(Boolean) as Profile[];if(loaded.length){setProfiles(loaded);const aid=storedActive&&loaded.find(p=>p.id===storedActive)?storedActive:loaded[0].id;setActiveId(aid);const sizes:Record<string,number>={};loaded.forEach(p=>{sizes[p.id]=calcBytes(p);});setProfileSizes(sizes);setUsedBytes(sizes[aid]||0);return;}}
       const d=emptyProfile("Client 1");setProfiles([d]);setActiveId(d.id);await saveProfile(d);await saveIndex([{id:d.id,name:d.name}]);const b=calcBytes(d);setUsedBytes(b);setProfileSizes({[d.id]:b});
     })();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const channel=(supabase.channel("profiles-sync") as any)
+      .on("postgres_changes",{event:"*",schema:"public",table:"ig_profiles"},
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload:any)=>{
+          if(payload.eventType==="DELETE"){
+            setProfiles(prev=>(prev||[]).filter((p:Profile)=>p.id!==payload.old.id));
+          } else if(payload.new?.data){
+            const updated=payload.new.data as Profile;
+            setProfiles(prev=>(prev||[]).some((p:Profile)=>p.id===updated.id)
+              ?(prev||[]).map((p:Profile)=>p.id===updated.id?updated:p)
+              :[...(prev||[]),updated]);
+          }
+        }).subscribe();
+    return()=>{supabase.removeChannel(channel);};
   },[]);
   const scheduleSave=useCallback((updatedProfiles:Profile[],changedProfile:Profile|undefined)=>{
     setSaveStatus("saving");if(saveTimer.current)clearTimeout(saveTimer.current);
