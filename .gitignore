@@ -9,6 +9,13 @@
 .vibe/
 skills/
 
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
 # Environment
 .env
 .env.*
