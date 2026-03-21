@@ -177,7 +177,11 @@ export default function IGGridPlanner(){
   useEffect(()=>{
     (async()=>{
       const idx=await loadIndex();const storedActive=await loadActiveId();
-      if(idx&&idx.length){const loaded=(await Promise.all(idx.map(({id}:{id:string})=>loadProfile(id)))).filter(Boolean) as Profile[];if(loaded.length){setProfiles(loaded);const aid=storedActive&&loaded.find(p=>p.id===storedActive)?storedActive:loaded[0].id;setActiveId(aid);const sizes:Record<string,number>={};loaded.forEach(p=>{sizes[p.id]=calcBytes(p);});setProfileSizes(sizes);setUsedBytes(sizes[aid]||0);return;}}
+      if(idx&&idx.length){const loaded=(await Promise.all(idx.map(({id}:{id:string})=>loadProfile(id)))).filter(Boolean) as Profile[];if(loaded.length){
+        // Reconcile: recover any orphaned profiles not in the index
+        const{data:allRows}=await supabase.from("ig_profiles").select("id, data");
+        if(allRows){const indexedIds=new Set(loaded.map(p=>p.id));const orphans=allRows.filter(r=>!indexedIds.has(r.id)&&r.data).map(r=>r.data as Profile);if(orphans.length){const all=[...loaded,...orphans];setProfiles(all);const aid=storedActive&&all.find(p=>p.id===storedActive)?storedActive:all[0].id;setActiveId(aid);const sizes:Record<string,number>={};all.forEach(p=>{sizes[p.id]=calcBytes(p);});setProfileSizes(sizes);setUsedBytes(sizes[aid]||0);await saveIndex(all.map(p=>({id:p.id,name:p.name})));return;}}
+        setProfiles(loaded);const aid=storedActive&&loaded.find(p=>p.id===storedActive)?storedActive:loaded[0].id;setActiveId(aid);const sizes:Record<string,number>={};loaded.forEach(p=>{sizes[p.id]=calcBytes(p);});setProfileSizes(sizes);setUsedBytes(sizes[aid]||0);return;}}
       const d=emptyProfile("Client 1");setProfiles([d]);setActiveId(d.id);await saveProfile(d);await saveIndex([{id:d.id,name:d.name}]);const b=calcBytes(d);setUsedBytes(b);setProfileSizes({[d.id]:b});
     })();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -189,9 +193,15 @@ export default function IGGridPlanner(){
             setProfiles(prev=>(prev||[]).filter((p:Profile)=>p.id!==payload.old.id));
           } else if(payload.new?.data){
             const updated=payload.new.data as Profile;
-            setProfiles(prev=>(prev||[]).some((p:Profile)=>p.id===updated.id)
-              ?(prev||[]).map((p:Profile)=>p.id===updated.id?updated:p)
-              :[...(prev||[]),updated]);
+            setProfiles(prev=>{
+              const existing=prev||[];
+              const isUpdate=existing.some((p:Profile)=>p.id===updated.id);
+              const next=isUpdate
+                ?existing.map((p:Profile)=>p.id===updated.id?updated:p)
+                :[...existing,updated];
+              if(!isUpdate){saveIndex(next.map(p=>({id:p.id,name:p.name})));}
+              return next;
+            });
           }
         }).subscribe();
     return()=>{supabase.removeChannel(channel);};
