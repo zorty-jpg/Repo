@@ -975,6 +975,7 @@ export default function IGGridPlanner() {
     notes: "",
   });
   const [clientSaved, setClientSaved] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const [gapLoading, setGapLoading] = useState(false);
   const [gapResult, setGapResult] = useState("");
   const [importMode, setImportMode] = useState("replace");
@@ -2435,13 +2436,19 @@ export default function IGGridPlanner() {
     setTimeout(() => setClientSaved(false), 2000);
   }, [clientForm, updateProfile]);
 
-  const detectGaps = useCallback(async () => {
+  const detectGaps = useCallback(async (opts?: { toChat?: boolean }) => {
     if (!images.length || gapLoading) return;
     setGapLoading(true);
     setGapResult("");
+    if (opts?.toChat) {
+      setMsgs((prev) => [...prev, { role: "user", text: "✦ Scan for content gaps" }]);
+    }
     try {
       const ci = clientForm;
-      const bCtx = `Niche: ${ci.niche || "?"}\nAudience: ${ci.audience || "?"}\nTone: ${ci.tone || "?"}\nPillars: ${ci.pillars || "?"}\nCompetitors: ${ci.competitors || "?"}\nNotes: ${ci.notes || "none"}`;
+      const hasContext = ci.niche || ci.audience || ci.tone || ci.pillars;
+      const bCtx = hasContext
+        ? `\n\nClient Context (optional — provided by user):\nNiche: ${ci.niche || "?"}\nAudience: ${ci.audience || "?"}\nTone: ${ci.tone || "?"}\nPillars: ${ci.pillars || "?"}\nCompetitors: ${ci.competitors || "?"}\nNotes: ${ci.notes || "none"}`
+        : "";
       const content: {
         type: string;
         text?: string;
@@ -2460,9 +2467,8 @@ export default function IGGridPlanner() {
       });
       content.push({
         type: "text",
-        text: `Client Context:\n${bCtx}\n\nIdentify:\n**MISSING CONTENT TYPES**\n**AESTHETIC GAPS**\n**TOP 5 POST IDEAS**\n**QUICK WINS THIS WEEK**`,
+        text: `Analyze this Instagram feed. Study the images to infer the brand niche, audience, aesthetic, and content pillars from what you see.${bCtx}\n\nIdentify:\n**MISSING CONTENT TYPES** — what's absent from the feed\n**AESTHETIC GAPS** — visual monotony, missing variety\n**TOP 5 POST IDEAS** — specific, actionable\n**QUICK WINS THIS WEEK** — low-effort, high-impact`,
       });
-      // Bug 1 fix: use /api/anthropic proxy
       const res = await fetch("/api/anthropic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2475,15 +2481,22 @@ export default function IGGridPlanner() {
       const resp = await res.json();
       if (!res.ok || resp.error || !resp.content)
         throw new Error(resp.error || "API error");
-      setGapResult(
+      const result =
         resp.content.find((b: { type: string }) => b.type === "text")
-          ?.text || "Analysis failed."
-      );
+          ?.text || "Analysis failed.";
+      setGapResult(result);
+      if (opts?.toChat) {
+        setMsgs((prev) => [...prev, { role: "ai", text: result }]);
+      }
     } catch {
-      setGapResult("Error. Check connection and try again.");
+      const err = "Error. Check connection and try again.";
+      setGapResult(err);
+      if (opts?.toChat) {
+        setMsgs((prev) => [...prev, { role: "ai", text: err }]);
+      }
     }
     setGapLoading(false);
-  }, [images, gapLoading, clientForm]);
+  }, [images, gapLoading, clientForm, setMsgs]);
 
   const sendMsg = useCallback(async (overrideMsg?: string) => {
     const raw = overrideMsg ?? input;
@@ -3388,18 +3401,9 @@ export default function IGGridPlanner() {
                         alignItems: "center",
                         gap: 4,
                         marginTop: 3,
-                        flexWrap: "wrap",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "#bbb",
-                          flexShrink: 0,
-                        }}
-                      >
-                        🔗
-                      </span>
+                      <span style={{ fontSize: 12, color: "#bbb", flexShrink: 0 }}>🔗</span>
                       {info.link ? (
                         <a
                           href={info.link}
@@ -3410,25 +3414,35 @@ export default function IGGridPlanner() {
                             color: "#3897f0",
                             fontFamily: "sans-serif",
                             textDecoration: "none",
-                            marginRight: 4,
                             wordBreak: "break-all",
+                            flex: 1,
+                            minWidth: 0,
                           }}
                         >
                           {info.link.replace(/^https?:\/\//, "")}
                         </a>
-                      ) : null}
-                      <InlineText
-                        value={info.link || ""}
-                        onChange={updInfo("link")}
-                        placeholder="Add link…"
-                        style={{
-                          fontSize: 12,
-                          color: "#3897f0",
-                          fontFamily: "sans-serif",
-                          minWidth: 60,
-                          flex: 1,
+                      ) : (
+                        <span
+                          onClick={() => {
+                            const url = prompt("Enter link URL:");
+                            if (url) updInfo("link")(url);
+                          }}
+                          style={{ fontSize: 12, color: "#bbb", fontFamily: "sans-serif", cursor: "pointer" }}
+                        >
+                          Add link…
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = prompt("Edit link:", info.link || "");
+                          if (url !== null) updInfo("link")(url);
                         }}
-                      />
+                        style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", fontSize: 10, color: "#bbb", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+                        title="Edit link"
+                      >
+                        ✎
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3881,14 +3895,14 @@ export default function IGGridPlanner() {
                               </button>
                               <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
                               <button
-                                onClick={() => { if (images.length) setActivePanel("client"); }}
-                                disabled={!images.length}
+                                onClick={() => { if (images.length && !gapLoading) detectGaps({ toChat: true }); }}
+                                disabled={!images.length || gapLoading}
                                 title="Scan for content gaps"
-                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
-                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
+                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: gapLoading ? PINK : images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length && !gapLoading ? "pointer" : "default", transition: "all .15s" }}
+                                onMouseEnter={(e) => { if (images.length && !gapLoading) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
                               >
-                                ◎ Gaps
+                                {gapLoading ? "⟳ Scanning..." : "◎ Gaps"}
                               </button>
                               <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
                               <button
@@ -3905,6 +3919,16 @@ export default function IGGridPlanner() {
                                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
                               >
                                 ✎ Caption
+                              </button>
+                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
+                              <button
+                                onClick={() => ssRef.current?.click()}
+                                title="Import from screenshot"
+                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: "#666", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: "pointer", transition: "all .15s" }}
+                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                              >
+                                ⊡ Screenshot
                               </button>
                             </div>
                             <button
@@ -4534,14 +4558,19 @@ export default function IGGridPlanner() {
                         }}
                       >
                         <div
+                          onClick={() => setContextOpen((o) => !o)}
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            marginBottom: 14,
+                            cursor: "pointer",
+                            marginBottom: contextOpen ? 14 : 0,
                           }}
                         >
-                          <div style={S}>Context Library</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, color: "#bbb", transition: "transform .2s", transform: contextOpen ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
+                            <div style={S}>Context (Optional)</div>
+                          </div>
                           <div
                             style={{
                               display: "flex",
@@ -4561,27 +4590,32 @@ export default function IGGridPlanner() {
                                 ✓ Saved
                               </span>
                             )}
-                            <button
-                              onClick={saveClientInfo}
-                              style={{
-                                padding: "5px 12px",
-                                background: "#000",
-                                border: "none",
-                                borderRadius: 6,
-                                color: "#fff",
-                                fontSize: 11,
-                                fontFamily: "sans-serif",
-                                fontWeight: 600,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Save
-                            </button>
+                            {contextOpen && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); saveClientInfo(); }}
+                                style={{
+                                  padding: "5px 12px",
+                                  background: "#000",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  color: "#fff",
+                                  fontSize: 11,
+                                  fontFamily: "sans-serif",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Save
+                              </button>
+                            )}
                           </div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "#aaa", fontFamily: "sans-serif", marginBottom: contextOpen ? 10 : 0, display: contextOpen ? "none" : "block" }}>
+                          AI will infer context from your images. Add details here to improve results.
                         </div>
                         <div
                           style={{
-                            display: "flex",
+                            display: contextOpen ? "flex" : "none",
                             flexDirection: "column",
                             gap: 10,
                           }}
@@ -4693,7 +4727,7 @@ export default function IGGridPlanner() {
                           and finds what&apos;s missing.
                         </div>
                         <button
-                          onClick={detectGaps}
+                          onClick={() => detectGaps()}
                           disabled={
                             gapLoading || !images.length
                           }
