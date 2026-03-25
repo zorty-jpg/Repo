@@ -4011,9 +4011,20 @@ If asked to reorder by vibe AND images exist: state the logic in one sentence, t
                         <div style={{ flex: 1 }} />
                         {!msgs.length && (
                           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 16, padding: "20px 4px 10px" }}>
-                            <div style={{ borderLeft: "2px solid #e0e0e0", paddingLeft: 12 }}>
-                              <div style={{ fontSize: 11, color: "#999", fontFamily: "sans-serif", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Creative Director</div>
-                              <div style={{ fontSize: 13, color: "#333", fontFamily: "sans-serif", fontWeight: 400, lineHeight: 1.6 }}>Brief me. Grid reorder, content audit, caption direction — tell me what you need.</div>
+                            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                              <div style={{ paddingTop: 2, flexShrink: 0 }}>
+                                <DotLoader
+                                  frames={aiSmileyFrames}
+                                  className="gap-px"
+                                  repeatCount={-1}
+                                  duration={250}
+                                  dotClassName="bg-black/8 [&.active]:bg-black/50 size-[3px] rounded-full"
+                                />
+                              </div>
+                              <div style={{ borderLeft: "2px solid #e0e0e0", paddingLeft: 12 }}>
+                                <div style={{ fontSize: 11, color: "#999", fontFamily: "sans-serif", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Creative Director</div>
+                                <div style={{ fontSize: 13, color: "#333", fontFamily: "sans-serif", fontWeight: 400, lineHeight: 1.6 }}>Brief me. Grid reorder, content audit, caption direction — tell me what you need.</div>
+                              </div>
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                               {[
