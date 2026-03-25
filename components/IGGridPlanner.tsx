@@ -917,8 +917,9 @@ const ProfileSwitcher = React.memo(function ProfileSwitcher({
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function IGGridPlanner() {
-  const [profiles, setProfiles] = useState<Profile[] | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>(() => [emptyProfile("Client 1")]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
   const [usedBytes, setUsedBytes] = useState(0);
   const [profileSizes, setProfileSizes] = useState<Record<string, number>>({});
@@ -995,7 +996,7 @@ export default function IGGridPlanner() {
 
   // ── Derived values (memoized) ───────────────────────────────────────────
   const active = useMemo(
-    () => profiles?.find((p) => p.id === activeId),
+    () => profiles.find((p) => p.id === activeId),
     [profiles, activeId]
   );
 
@@ -1077,65 +1078,42 @@ export default function IGGridPlanner() {
 
   useEffect(() => {
     (async () => {
-      const idx = await loadIndex();
-      const storedActive = await loadActiveId();
-      if (idx && idx.length) {
-        const loaded = (
-          await Promise.all(
-            idx.map(({ id }: { id: string }) => loadProfile(id))
-          )
-        ).filter(Boolean) as Profile[];
-        if (loaded.length) {
-          // Reconcile: recover any orphaned profiles not in the index
-          const { data: allRows } = await supabase
-            .from("ig_profiles")
-            .select("id, data");
-          if (allRows) {
-            const indexedIds = new Set(loaded.map((p) => p.id));
-            const orphans = allRows
-              .filter((r) => !indexedIds.has(r.id) && r.data)
-              .map((r) => r.data as Profile);
-            if (orphans.length) {
-              const all = [...loaded, ...orphans];
-              setProfiles(all);
-              const aid =
-                storedActive && all.find((p) => p.id === storedActive)
-                  ? storedActive
-                  : all[0].id;
-              setActiveId(aid);
-              const sizes: Record<string, number> = {};
-              all.forEach((p) => {
-                sizes[p.id] = calcBytes(p);
-              });
-              setProfileSizes(sizes);
-              setUsedBytes(sizes[aid] || 0);
-              await saveIndex(all.map((p) => ({ id: p.id, name: p.name })));
-              return;
-            }
-          }
-          setProfiles(loaded);
-          const aid =
-            storedActive && loaded.find((p) => p.id === storedActive)
-              ? storedActive
-              : loaded[0].id;
-          setActiveId(aid);
-          const sizes: Record<string, number> = {};
-          loaded.forEach((p) => {
-            sizes[p.id] = calcBytes(p);
-          });
-          setProfileSizes(sizes);
-          setUsedBytes(sizes[aid] || 0);
-          return;
-        }
+      // Single parallel fetch — replaces the N+3 query waterfall
+      const [activeIdResult, { data: allRows }] = await Promise.all([
+        loadActiveId(),
+        supabase.from("ig_profiles").select("id, data"),
+      ]);
+
+      const all = (allRows || [])
+        .filter((r) => r.data)
+        .map((r) => r.data as Profile);
+
+      if (all.length) {
+        setProfiles(all);
+        const aid =
+          activeIdResult && all.find((p) => p.id === activeIdResult)
+            ? activeIdResult
+            : all[0].id;
+        setActiveId(aid);
+        const sizes: Record<string, number> = {};
+        all.forEach((p) => {
+          sizes[p.id] = calcBytes(p);
+        });
+        setProfileSizes(sizes);
+        setUsedBytes(sizes[aid] || 0);
+        // Reconcile index in background
+        saveIndex(all.map((p) => ({ id: p.id, name: p.name })));
+      } else {
+        // First visit — use the default profile already in state
+        const d = profiles[0];
+        setActiveId(d.id);
+        await saveProfile(d);
+        await saveIndex([{ id: d.id, name: d.name }]);
+        const b = calcBytes(d);
+        setUsedBytes(b);
+        setProfileSizes({ [d.id]: b });
       }
-      const d = emptyProfile("Client 1");
-      setProfiles([d]);
-      setActiveId(d.id);
-      await saveProfile(d);
-      await saveIndex([{ id: d.id, name: d.name }]);
-      const b = calcBytes(d);
-      setUsedBytes(b);
-      setProfileSizes({ [d.id]: b });
+      setLoaded(true);
     })();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1858,7 +1836,7 @@ export default function IGGridPlanner() {
   );
 
   const handleCreate = useCallback(async () => {
-    const p = emptyProfile(`Client ${(profiles?.length || 0) + 1}`);
+    const p = emptyProfile(`Client ${profiles.length + 1}`);
     setProfiles((prev) => {
       const next = [...(prev || []), p];
       saveIndex(next.map((x) => ({ id: x.id, name: x.name })));
@@ -1890,7 +1868,7 @@ export default function IGGridPlanner() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!profiles || profiles.length <= 1) return;
+      if (profiles.length <= 1) return;
       const next = profiles.filter((p) => p.id !== id);
       setProfiles(next);
       await saveIndex(next.map((p) => ({ id: p.id, name: p.name })));
@@ -2796,24 +2774,6 @@ export default function IGGridPlanner() {
   const S = SECTION_LABEL;
   const INP = INPUT_STYLE;
   const LBL = LABEL_STYLE;
-
-  // ── Loading state ───────────────────────────────────────────────────────
-  if (!profiles)
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100vh",
-          fontFamily: "sans-serif",
-          color: "#aaa",
-          background: "#ebebeb",
-        }}
-      >
-        Loading...
-      </div>
-    );
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
