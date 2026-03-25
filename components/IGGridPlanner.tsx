@@ -3954,6 +3954,8 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                     <>
                       {/* Messages */}
                       <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px", display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
+                        {/* Spacer pushes messages to bottom */}
+                        <div style={{ flex: 1 }} />
                         {!msgs.length && (
                           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "30px 10px" }}>
                             <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #f5f5f5, #eee)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>✦</div>
@@ -3992,7 +3994,7 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                           );
                         })}
 
-                        {aiLoading && (
+                        {(aiLoading || gapLoading) && (
                           <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 2, padding: "4px 0" }}>
                             <DotLoader
                               frames={aiSmileyFrames}
