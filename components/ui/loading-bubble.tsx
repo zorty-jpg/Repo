@@ -81,7 +81,7 @@ const allQuips: DotFlowProps["items"] = [
   { title: "wow, long load", frames: importing, repeatCount: 1, duration: 200 },
   { title: "victoria, go nap", frames: heartbit, repeatCount: 1, duration: 130 },
   { title: "loadin..k32-i4320-43", frames: importing, repeatCount: 1, duration: 100 },
-  { title: "WAKE UP WAKE UP WAKEUP", frames: syncing, repeatCount: 3, duration: 80 },
+  { title: "Wake up, Victoria.", frames: syncing, repeatCount: 2, duration: 100 },
 ];
 
 function shuffled<T>(arr: T[]): T[] {

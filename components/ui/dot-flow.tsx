@@ -6,6 +6,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 
 import { DotLoader } from "@/components/ui/dot-loader";
+import { SpecialText } from "@/components/ui/special-text";
 
 export type DotFlowProps = {
     items: {
@@ -74,9 +75,11 @@ export const DotFlow = ({ items }: DotFlowProps) => {
                 duration={items[index].duration ?? 150}
                 dotClassName="bg-white/15 [&.active]:bg-white size-1"
             />
-            <div ref={containerRef} className="relative">
-                <div ref={textRef} className="inline-block text-lg font-medium whitespace-nowrap text-white">
-                    {items[textIndex].title}
+            <div ref={containerRef} className="relative overflow-hidden">
+                <div ref={textRef} className="inline-block whitespace-nowrap">
+                    <SpecialText className="text-lg font-medium text-white" speed={25}>
+                        {items[textIndex].title}
+                    </SpecialText>
                 </div>
             </div>
         </div>

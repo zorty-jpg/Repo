@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { LoadingBubble } from "@/components/ui/loading-bubble";
+import { PromptInputBox } from "@/components/ui/ai-prompt-box";
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -3981,76 +3982,61 @@ export default function IGGridPlanner() {
 
                         <div ref={chatEnd} />
                       </div>
-                      <div
-                        style={{
-                          padding: "10px 14px",
-                          borderTop: "1px solid #f0f0f0",
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "flex-end",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <textarea
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (
-                              e.key === "Enter" &&
-                              !e.shiftKey
-                            ) {
-                              e.preventDefault();
-                              sendMsg();
-                            }
+                      <div style={{ padding: "8px 10px", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
+                        <PromptInputBox
+                          onSend={(message) => {
+                            if (!message.trim() || aiLoading) return;
+                            setInput(message);
+                            // Trigger send on next tick after input state updates
+                            setTimeout(() => {
+                              setInput("");
+                              // Inline the sendMsg logic with the message directly
+                              const userText = message.trim();
+                              setMsgs((prev) => [...prev, { role: "user", text: userText }]);
+                              setAiLoading(true);
+                              (async () => {
+                                try {
+                                  const ci = active?.clientInfo || { niche: "", audience: "", tone: "", pillars: "", competitors: "", notes: "" };
+                                  const bS = ci.niche || ci.tone ? `\nClient: ${[ci.niche, ci.tone].filter(Boolean).join(", ")}.` : "";
+                                  const sys = `You are an expert Instagram content strategist.${bS} Grid has ${images.length} images. If asked to reorder by vibe AND images exist, give: 1. One sentence (max 12 words). 2. JSON array of all ${images.length} indices in new order. Otherwise chat. Be concise.`;
+                                  const hist = msgs.filter((m) => m.role !== "sys").map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
+                                  const kw = /rearrange|reorder|sort|layout|vibe|arrange|reorganize|order|dark|light|moody|minimal|vibrant|editorial|aesthetic|grid/i;
+                                  const wantR = images.length > 0 && kw.test(userText);
+                                  let uc: string | { type: string; text?: string; source?: { type: string; media_type: string; data: string } }[] = userText;
+                                  if (wantR) {
+                                    const arr: { type: string; text?: string; source?: { type: string; media_type: string; data: string } }[] = [];
+                                    images.forEach((img, i) => { arr.push({ type: "text", text: `Image ${i}:` }); arr.push({ type: "image", source: { type: "base64", media_type: img.src.split(";")[0].split(":")[1], data: img.src.split(",")[1] } }); });
+                                    arr.push({ type: "text", text: userText });
+                                    uc = arr;
+                                  }
+                                  const res = await fetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: sys, messages: [...hist, { role: "user", content: uc }] }) });
+                                  const data = await res.json();
+                                  if (!res.ok || data.error || !data.content) {
+                                    setMsgs((prev) => [...prev, { role: "ai", text: `⚠ ${data.error?.message || data.error?.error?.message || (typeof data.error === "string" ? data.error : null) || "API error — check your ANTHROPIC_API_KEY"}` }]);
+                                    setAiLoading(false);
+                                    return;
+                                  }
+                                  const text = data.content.find((b: { type: string }) => b.type === "text")?.text || "";
+                                  const jm = text.match(/\[[\d,\s]+\]/);
+                                  const clean = text.replace(/\[[\d,\s]+\]/, "").replace(/```json?|```/g, "").trim();
+                                  setMsgs((prev) => [...prev, { role: "ai", text: clean || "(no response)" }]);
+                                  if (jm && wantR) {
+                                    const order = JSON.parse(jm[0]) as number[];
+                                    if (order.length === images.length && new Set(order).size === images.length) {
+                                      updateProfile((p) => ({ ...p, images: order.map((i) => p.images[i]) }));
+                                      setMsgs((prev) => [...prev, { role: "sys", text: "✦ GRID REORDERED" }]);
+                                    }
+                                  }
+                                } catch {
+                                  setMsgs((prev) => [...prev, { role: "ai", text: "Error. Try again." }]);
+                                }
+                                setAiLoading(false);
+                              })();
+                            }, 0);
                           }}
-                          placeholder={
-                            images.length
-                              ? "Describe the vibe or ask anything..."
-                              : "Upload images first..."
-                          }
-                          disabled={aiLoading}
-                          rows={2}
-                          style={{
-                            flex: 1,
-                            background: "#f8f8f8",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: 10,
-                            padding: "9px 12px",
-                            color: "#000",
-                            fontSize: 12,
-                            fontFamily: "sans-serif",
-                            outline: "none",
-                            resize: "none",
-                            lineHeight: 1.6,
-                          }}
+                          isLoading={aiLoading}
+                          placeholder={images.length ? "Describe the vibe or ask anything..." : "Upload images first..."}
                         />
-                        <button
-                          onClick={sendMsg}
-                          disabled={aiLoading || !input.trim()}
-                          style={{
-                            padding: "9px 18px",
-                            background:
-                              aiLoading || !input.trim()
-                                ? "#f0f0f0"
-                                : "#000",
-                            border: "none",
-                            borderRadius: 10,
-                            color:
-                              aiLoading || !input.trim()
-                                ? "#bbb"
-                                : "#fff",
-                            fontSize: 12,
-                            fontFamily: "sans-serif",
-                            fontWeight: 600,
-                            cursor:
-                              aiLoading || !input.trim()
-                                ? "default"
-                                : "pointer",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          Send
-                        </button>
                       </div>
                     </>
                   )}
