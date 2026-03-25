@@ -8,6 +8,7 @@ import React, {
   Suspense,
 } from "react";
 import { supabase } from "@/lib/supabase";
+import { LoadingBubble } from "@/components/ui/loading-bubble";
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -2776,6 +2777,8 @@ export default function IGGridPlanner() {
   const LBL = LABEL_STYLE;
 
   // ── Render ──────────────────────────────────────────────────────────────
+  if (!loaded) return <LoadingBubble />;
+
   return (
     <>
       <style>{`*{box-sizing:border-box}body,html{margin:0;background:#ebebeb;}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#ddd;border-radius:4px}@keyframes pulse{0%,80%,100%{opacity:.15;transform:scale(.7)}40%{opacity:1;transform:scale(1)}}`}</style>
