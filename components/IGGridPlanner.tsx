@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { LoadingBubble } from "@/components/ui/loading-bubble";
-// PromptInputBox available at @/components/ui/ai-prompt-box if needed
+import { TypingEffect } from "@/components/ui/typing-effect";
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -3923,22 +3923,18 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
 
                   {activePanel === "chat" && (
                     <>
-                      {/* Messages — light themed, matching prompt box radius/spacing */}
-                      <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+                      {/* Messages */}
+                      <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px", display: "flex", flexDirection: "column", gap: 8, minHeight: 0 }}>
                         {!msgs.length && (
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 12, padding: "20px 10px" }}>
-                            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✦</div>
-                            <div style={{ fontSize: 13, color: "#666", fontFamily: "sans-serif", fontWeight: 500 }}>What vibe are we going for?</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 4 }}>
-                              {[
-                                "moody editorial",
-                                "warm & vibrant",
-                                "dark minimal",
-                                "content gaps?",
-                              ].map((t, i) => (
-                                <div key={i} onClick={() => { setInput(t); setTimeout(() => sendMsg(t), 0); }} style={{ color: "#666", fontSize: 11, fontFamily: "sans-serif", padding: "6px 12px", background: "#fff", borderRadius: 20, cursor: "pointer", border: "1px solid #e8e8e8", transition: "all .15s", fontWeight: 500 }} onMouseEnter={(e) => { (e.target as HTMLElement).style.borderColor = "#bbb"; (e.target as HTMLElement).style.background = "#fafafa"; }} onMouseLeave={(e) => { (e.target as HTMLElement).style.borderColor = "#e8e8e8"; (e.target as HTMLElement).style.background = "#fff"; }}>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "30px 10px" }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #f5f5f5, #eee)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>✦</div>
+                            <div style={{ fontSize: 14, color: "#444", fontFamily: "sans-serif", fontWeight: 600 }}>What vibe are we going for?</div>
+                            <div style={{ fontSize: 11, color: "#aaa", fontFamily: "sans-serif", maxWidth: 220, textAlign: "center", lineHeight: 1.5 }}>I can rearrange your grid, find content gaps, or brainstorm captions</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 2 }}>
+                              {["moody editorial", "warm & vibrant", "dark minimal", "what's missing?"].map((t, i) => (
+                                <button key={i} onClick={() => sendMsg(t)} className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 active:scale-95" style={{ fontFamily: "sans-serif" }}>
                                   {t}
-                                </div>
+                                </button>
                               ))}
                             </div>
                           </div>
@@ -3947,40 +3943,40 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                         {msgs.map((m, i) => {
                           if (m.role === "sys")
                             return (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
                                 <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
-                                <span style={{ color: "#bbb", fontSize: 10, fontFamily: "sans-serif", whiteSpace: "nowrap", letterSpacing: 0.5 }}>{m.text}</span>
+                                <span style={{ color: "#c0c0c0", fontSize: 9, fontFamily: "sans-serif", whiteSpace: "nowrap", letterSpacing: 0.8, fontWeight: 500, textTransform: "uppercase" }}>{m.text}</span>
                                 <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
                               </div>
                             );
                           if (m.role === "user")
                             return (
-                              <div key={i} style={{ display: "flex", justifyContent: "flex-end" }}>
-                                <div style={{ maxWidth: "82%", padding: "9px 14px", background: "#111", borderRadius: 20, borderBottomRightRadius: 6, color: "#fff", fontSize: 12, lineHeight: 1.55, fontFamily: "sans-serif" }}>{m.text}</div>
+                              <div key={i} style={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}>
+                                <div style={{ maxWidth: "85%", padding: "10px 14px", background: "#111", borderRadius: "18px 18px 4px 18px", color: "#fff", fontSize: 12.5, lineHeight: 1.5, fontFamily: "sans-serif", fontWeight: 400 }}>{m.text}</div>
                               </div>
                             );
                           return (
-                            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                              <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f0f0f0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
-                              <div style={{ maxWidth: "88%", padding: "10px 14px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, color: "#333", fontSize: 12, lineHeight: 1.6, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{renderAiText(m.text)}</div>
+                            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 2 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}>✦</div>
+                              <div style={{ maxWidth: "88%", padding: "10px 14px", background: "#fafafa", borderRadius: "4px 18px 18px 18px", color: "#333", fontSize: 12.5, lineHeight: 1.6, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{renderAiText(m.text)}</div>
                             </div>
                           );
                         })}
 
                         {aiLoading && (
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                            <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f0f0f0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
-                            <div style={{ padding: "10px 16px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, display: "flex", gap: 5, alignItems: "center", border: "1px solid #f0f0f0" }}>
-                              {[0, 1, 2].map((j) => (<div key={j} style={{ width: 5, height: 5, borderRadius: "50%", background: "#ccc", animation: `pulse 1.4s ease-in-out ${j * 0.22}s infinite` }} />))}
+                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 2 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}>✦</div>
+                            <div style={{ padding: "10px 14px", background: "#fafafa", borderRadius: "4px 18px 18px 18px", border: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 2 }}>
+                              <TypingEffect texts={["thinking", "analyzing", "crafting"]} className="!text-xs !font-normal text-gray-400" typingSpeed={80} rotationInterval={2000} />
                             </div>
                           </div>
                         )}
                         <div ref={chatEnd} />
                       </div>
 
-                      {/* Input area — PromptInputBox aesthetic, light mode */}
-                      <div style={{ padding: "12px 14px", flexShrink: 0 }}>
-                        <div style={{ border: "1px solid #e4e4e4", borderRadius: 22, padding: "8px 12px", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", transition: "border-color .2s, box-shadow .2s" }}>
+                      {/* Input area */}
+                      <div style={{ padding: "10px 12px", flexShrink: 0 }}>
+                        <div style={{ border: "1px solid #e8e8e8", borderRadius: 20, padding: "8px 12px", background: "#fff", boxShadow: "0 1px 8px rgba(0,0,0,0.03)", transition: "all .2s" }}>
                           <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -3988,67 +3984,32 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                             placeholder={images.length ? "Describe the vibe or ask anything..." : "Upload images first..."}
                             disabled={aiLoading}
                             rows={1}
-                            style={{ width: "100%", background: "transparent", border: "none", outline: "none", resize: "none", color: "#222", fontSize: 13, fontFamily: "sans-serif", lineHeight: 1.5, padding: "4px 2px", minHeight: 28 }}
+                            style={{ width: "100%", background: "transparent", border: "none", outline: "none", resize: "none", color: "#222", fontSize: 13, fontFamily: "sans-serif", lineHeight: 1.5, padding: "2px 0", minHeight: 24 }}
                           />
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                              <button
-                                onClick={() => {
-                                  if (!images.length || aiLoading) return;
-                                  setMsgs((prev) => [...prev, { role: "user", text: "✦ Auto-arrange grid" }]);
-                                  setAiLoading(true);
-                                  sendMsg("Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm");
-                                }}
-                                disabled={!images.length || aiLoading}
-                                title="Auto-arrange grid"
-                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
-                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-                              >
-                                ⊞ Grid
-                              </button>
-                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
-                              <button
-                                onClick={() => { if (images.length && !gapLoading) detectGaps({ toChat: true }); }}
-                                disabled={!images.length || gapLoading}
-                                title="Scan for content gaps"
-                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: gapLoading ? PINK : images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length && !gapLoading ? "pointer" : "default", transition: "all .15s" }}
-                                onMouseEnter={(e) => { if (images.length && !gapLoading) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-                              >
-                                {gapLoading ? "⟳ Scanning..." : "◎ Gaps"}
-                              </button>
-                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
-                              <button
-                                onClick={() => {
-                                  if (!images.length || aiLoading) return;
-                                  setMsgs((prev) => [...prev, { role: "user", text: "✦ Suggest caption ideas" }]);
-                                  setAiLoading(true);
-                                  sendMsg("Look at my grid and suggest 3 caption ideas for my next post — short, punchy, on-brand");
-                                }}
-                                disabled={!images.length || aiLoading}
-                                title="Generate caption ideas"
-                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
-                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-                              >
-                                ✎ Caption
-                              </button>
-                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
-                              <button
-                                onClick={() => ssRef.current?.click()}
-                                title="Import from screenshot"
-                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: "#666", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: "pointer", transition: "all .15s" }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-                              >
-                                ⊡ Screenshot
-                              </button>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                            <div className="flex items-center gap-0.5">
+                              {[
+                                { label: "Grid", icon: "⊞", action: () => { if (!images.length || aiLoading) return; setMsgs((p) => [...p, { role: "user", text: "✦ Auto-arrange grid" }]); setAiLoading(true); sendMsg("Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm"); }, disabled: !images.length || aiLoading },
+                                { label: gapLoading ? "Scanning..." : "Gaps", icon: "◎", action: () => { if (images.length && !gapLoading) detectGaps({ toChat: true }); }, disabled: !images.length || gapLoading },
+                                { label: "Caption", icon: "✎", action: () => { if (!images.length || aiLoading) return; setMsgs((p) => [...p, { role: "user", text: "✦ Caption ideas" }]); setAiLoading(true); sendMsg("Suggest 3 caption ideas for my next post — short, punchy, on-brand"); }, disabled: !images.length || aiLoading },
+                                { label: "Crop", icon: "⊡", action: () => ssRef.current?.click(), disabled: false },
+                              ].map((btn, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={btn.action}
+                                  disabled={btn.disabled}
+                                  className="rounded-full border border-transparent px-2.5 py-1 text-[10px] font-medium text-gray-400 transition-all hover:border-gray-200 hover:bg-gray-50 hover:text-gray-600 disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
+                                  style={{ fontFamily: "sans-serif", height: 26 }}
+                                >
+                                  {btn.icon} {btn.label}
+                                </button>
+                              ))}
                             </div>
                             <button
                               onClick={() => sendMsg()}
                               disabled={aiLoading || !input.trim()}
-                              style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: !aiLoading && input.trim() ? "#000" : "#f0f0f0", border: "none", color: !aiLoading && input.trim() ? "#fff" : "#bbb", fontSize: 14, cursor: !aiLoading && input.trim() ? "pointer" : "default", transition: "all .15s", flexShrink: 0 }}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all duration-150"
+                              style={{ background: !aiLoading && input.trim() ? "#111" : "#f0f0f0", color: !aiLoading && input.trim() ? "#fff" : "#bbb", border: "none", fontSize: 13, cursor: !aiLoading && input.trim() ? "pointer" : "default" }}
                             >
                               ↑
                             </button>
