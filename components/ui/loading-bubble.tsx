@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DotFlow, type DotFlowProps } from "@/components/ui/dot-flow";
 
 const heartbit = [
@@ -71,34 +72,29 @@ const importing = [
   [0, 2, 4, 6, 20, 34, 48, 46, 44, 42, 28, 14, 8, 22, 36, 38, 40, 26, 12, 10, 16, 30, 24, 18, 32],
 ];
 
-const items: DotFlowProps["items"] = [
-  {
-    title: "more qlov?",
-    frames: heartbit,
-    repeatCount: 1,
-    duration: 150,
-  },
-  {
-    title: "IG needs you",
-    frames: syncing,
-    repeatCount: 2,
-    duration: 120,
-  },
-  {
-    title: "it'll load soon i think",
-    frames: searching,
-    repeatCount: 2,
-    duration: 150,
-  },
-  {
-    title: "wow, long load",
-    frames: importing,
-    repeatCount: 1,
-    duration: 200,
-  },
+const allAnimations = [heartbit, syncing, searching, importing];
+
+const allQuips: DotFlowProps["items"] = [
+  { title: "more qlov?", frames: heartbit, repeatCount: 1, duration: 150 },
+  { title: "IG needs you", frames: syncing, repeatCount: 2, duration: 120 },
+  { title: "it'll load soon i think", frames: searching, repeatCount: 2, duration: 150 },
+  { title: "wow, long load", frames: importing, repeatCount: 1, duration: 200 },
+  { title: "victoria, go nap", frames: heartbit, repeatCount: 1, duration: 130 },
+  { title: "loadin..k32-i4320-43", frames: importing, repeatCount: 1, duration: 100 },
+  { title: "WAKE UP WAKE UP WAKEUP", frames: syncing, repeatCount: 3, duration: 80 },
 ];
 
+function shuffled<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 export function LoadingBubble() {
+  const [items] = useState(() => shuffled(allQuips));
   return (
     <div className="flex h-screen w-full items-center justify-center" style={{ background: "#ebebeb" }}>
       <DotFlow items={items} />
