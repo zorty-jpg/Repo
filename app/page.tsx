@@ -1,4 +1,9 @@
-import IGGridPlanner from "@/components/IGGridPlanner";
+"use client";
+import dynamic from "next/dynamic";
+
+const IGGridPlanner = dynamic(() => import("@/components/IGGridPlanner"), {
+  ssr: false,
+});
 
 export default function Home() {
   return <IGGridPlanner />;
