@@ -985,7 +985,11 @@ export default function IGGridPlanner() {
   const [globalDragOver, setGlobalDragOver] = useState(false);
   const [avatarDragOver, setAvatarDragOver] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
+  const historyRef = useRef<Profile[]>([]);
+  const futureRef = useRef<Profile[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatarRef = useRef<HTMLInputElement>(null);
   const ssRef = useRef<HTMLInputElement>(null);
@@ -1203,6 +1207,13 @@ export default function IGGridPlanner() {
     (updater: (p: Profile) => Profile) => {
       setProfiles((prev) => {
         if (!prev) return prev;
+        const current = prev.find((p) => p.id === activeId);
+        if (current) {
+          historyRef.current = [...historyRef.current.slice(-29), current];
+          futureRef.current = [];
+          setCanUndo(true);
+          setCanRedo(false);
+        }
         const next = prev.map((p) =>
           p.id === activeId ? updater(p) : p
         );
@@ -1215,6 +1226,36 @@ export default function IGGridPlanner() {
     },
     [activeId, scheduleSave]
   );
+
+  const undo = useCallback(() => {
+    if (!historyRef.current.length) return;
+    const prev = historyRef.current.pop()!;
+    setProfiles((ps) => {
+      if (!ps) return ps;
+      const current = ps.find((p) => p.id === activeId);
+      if (current) futureRef.current.push(current);
+      const next = ps.map((p) => (p.id === prev.id ? prev : p));
+      scheduleSave(next, prev);
+      return next;
+    });
+    setCanUndo(historyRef.current.length > 0);
+    setCanRedo(true);
+  }, [activeId, scheduleSave]);
+
+  const redo = useCallback(() => {
+    if (!futureRef.current.length) return;
+    const next = futureRef.current.pop()!;
+    setProfiles((ps) => {
+      if (!ps) return ps;
+      const current = ps.find((p) => p.id === activeId);
+      if (current) historyRef.current.push(current);
+      const updated = ps.map((p) => (p.id === next.id ? next : p));
+      scheduleSave(updated, next);
+      return updated;
+    });
+    setCanUndo(true);
+    setCanRedo(futureRef.current.length > 0);
+  }, [activeId, scheduleSave]);
 
   const URL_RE = /https?:\/\/[^\s]+/i;
 
@@ -3031,6 +3072,9 @@ export default function IGGridPlanner() {
                 alignItems: "center",
               }}
             >
+              <button onClick={undo} disabled={!canUndo} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: canUndo ? "#fff" : "transparent", border: canUndo ? "1px solid #ddd" : "1px solid transparent", borderRadius: 7, color: canUndo ? "#333" : "#ccc", fontSize: 14, cursor: canUndo ? "pointer" : "default", transition: "all .15s", boxShadow: canUndo ? "0 2px 8px rgba(0,0,0,0.05)" : "none" }} title="Undo">↩</button>
+              <button onClick={redo} disabled={!canRedo} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", background: canRedo ? "#fff" : "transparent", border: canRedo ? "1px solid #ddd" : "1px solid transparent", borderRadius: 7, color: canRedo ? "#333" : "#ccc", fontSize: 14, cursor: canRedo ? "pointer" : "default", transition: "all .15s", boxShadow: canRedo ? "0 2px 8px rgba(0,0,0,0.05)" : "none" }} title="Redo">↪</button>
+              <div style={{ width: 1, height: 18, background: "#e0e0e0", margin: "0 2px" }} />
               {confirmClear ? (
                 <>
                   <span
@@ -3751,20 +3795,20 @@ export default function IGGridPlanner() {
 
                   {activePanel === "chat" && (
                     <>
-                      {/* Messages area — flex-grows to fill, scrolls */}
-                      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+                      {/* Messages — light themed, matching prompt box radius/spacing */}
+                      <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
                         {!msgs.length && (
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10, padding: "20px 0" }}>
-                            <div style={{ fontSize: 22, marginBottom: 4 }}>✦</div>
-                            <div style={{ fontSize: 12, color: "#999", fontFamily: "sans-serif", fontWeight: 500, marginBottom: 8 }}>Ask anything about your grid</div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 5, width: "100%" }}>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 12, padding: "20px 10px" }}>
+                            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>✦</div>
+                            <div style={{ fontSize: 13, color: "#666", fontFamily: "sans-serif", fontWeight: 500 }}>What vibe are we going for?</div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 4 }}>
                               {[
-                                "moody and dark, cool tones, editorial",
-                                "warm and vibrant, alternate light and dark",
-                                "what makes a good editorial grid?",
-                                "what content is missing from this feed?",
+                                "moody editorial",
+                                "warm & vibrant",
+                                "dark minimal",
+                                "content gaps?",
                               ].map((t, i) => (
-                                <div key={i} onClick={() => { setInput(t); sendMsg(); }} style={{ color: "#888", fontSize: 11, fontFamily: "sans-serif", padding: "7px 11px", background: "#fafafa", borderRadius: 8, cursor: "pointer", border: "1px solid #f0f0f0", transition: "all .15s" }} onMouseEnter={(e) => { (e.target as HTMLElement).style.background = "#f0f0f0"; }} onMouseLeave={(e) => { (e.target as HTMLElement).style.background = "#fafafa"; }}>
+                                <div key={i} onClick={() => { setInput(t); setTimeout(() => sendMsg(t), 0); }} style={{ color: "#666", fontSize: 11, fontFamily: "sans-serif", padding: "6px 12px", background: "#fff", borderRadius: 20, cursor: "pointer", border: "1px solid #e8e8e8", transition: "all .15s", fontWeight: 500 }} onMouseEnter={(e) => { (e.target as HTMLElement).style.borderColor = "#bbb"; (e.target as HTMLElement).style.background = "#fafafa"; }} onMouseLeave={(e) => { (e.target as HTMLElement).style.borderColor = "#e8e8e8"; (e.target as HTMLElement).style.background = "#fff"; }}>
                                   {t}
                                 </div>
                               ))}
@@ -3775,83 +3819,102 @@ export default function IGGridPlanner() {
                         {msgs.map((m, i) => {
                           if (m.role === "sys")
                             return (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
                                 <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
-                                <span style={{ color: "#bbb", fontSize: 10, fontFamily: "sans-serif", whiteSpace: "nowrap" }}>{m.text}</span>
+                                <span style={{ color: "#bbb", fontSize: 10, fontFamily: "sans-serif", whiteSpace: "nowrap", letterSpacing: 0.5 }}>{m.text}</span>
                                 <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
                               </div>
                             );
                           if (m.role === "user")
                             return (
                               <div key={i} style={{ display: "flex", justifyContent: "flex-end" }}>
-                                <div style={{ maxWidth: "80%", padding: "8px 12px", background: "#000", borderRadius: "14px 14px 4px 14px", color: "#fff", fontSize: 12, lineHeight: 1.5, fontFamily: "sans-serif" }}>{m.text}</div>
+                                <div style={{ maxWidth: "82%", padding: "9px 14px", background: "#111", borderRadius: 20, borderBottomRightRadius: 6, color: "#fff", fontSize: 12, lineHeight: 1.55, fontFamily: "sans-serif" }}>{m.text}</div>
                               </div>
                             );
                           return (
-                            <div key={i} style={{ display: "flex", gap: 7 }}>
-                              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#000", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700, marginTop: 1 }}>AI</div>
-                              <div style={{ maxWidth: "82%", padding: "8px 12px", background: "#f5f5f5", borderRadius: "4px 14px 14px 14px", color: "#000", fontSize: 12, lineHeight: 1.65, fontFamily: "sans-serif" }}>{m.text}</div>
+                            <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                              <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f0f0f0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
+                              <div style={{ maxWidth: "82%", padding: "9px 14px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, color: "#222", fontSize: 12, lineHeight: 1.65, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{m.text}</div>
                             </div>
                           );
                         })}
 
                         {aiLoading && (
-                          <div style={{ display: "flex", gap: 7 }}>
-                            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#000", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
-                            <div style={{ padding: "8px 12px", background: "#f5f5f5", borderRadius: "4px 14px 14px 14px", display: "flex", gap: 4, alignItems: "center" }}>
-                              {[0, 1, 2].map((i) => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: "#bbb", animation: `pulse 1.4s ease-in-out ${i * 0.22}s infinite` }} />))}
+                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                            <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f0f0f0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
+                            <div style={{ padding: "10px 16px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, display: "flex", gap: 5, alignItems: "center", border: "1px solid #f0f0f0" }}>
+                              {[0, 1, 2].map((j) => (<div key={j} style={{ width: 5, height: 5, borderRadius: "50%", background: "#ccc", animation: `pulse 1.4s ease-in-out ${j * 0.22}s infinite` }} />))}
                             </div>
                           </div>
                         )}
                         <div ref={chatEnd} />
                       </div>
 
-                      {/* Input area — white themed, grid-specific actions */}
-                      <div style={{ padding: "10px 14px", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
-                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                          <button
-                            onClick={() => {
-                              if (!images.length || aiLoading) return;
-                              const fakeMsg = "Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm";
-                              setMsgs((prev) => [...prev, { role: "user", text: "✦ Auto-arrange grid" }]);
-                              setAiLoading(true);
-                              sendMsg(fakeMsg);
-                            }}
-                            disabled={!images.length || aiLoading}
-                            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", background: images.length ? "#000" : "#f0f0f0", border: "none", borderRadius: 8, color: images.length ? "#fff" : "#bbb", fontSize: 10, fontFamily: "sans-serif", fontWeight: 600, cursor: images.length ? "pointer" : "default", letterSpacing: 0.5, transition: "all .15s" }}
-                          >
-                            ⊞ Auto Grid
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (!images.length || aiLoading) return;
-                              setActivePanel("client");
-                            }}
-                            disabled={!images.length}
-                            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, color: images.length ? "#555" : "#ccc", fontSize: 10, fontFamily: "sans-serif", fontWeight: 600, cursor: images.length ? "pointer" : "default", letterSpacing: 0.5, transition: "all .15s" }}
-                          >
-                            ◎ Gap Scan
-                          </button>
-                        </div>
-                        <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                      {/* Input area — PromptInputBox aesthetic, light mode */}
+                      <div style={{ padding: "12px 14px", flexShrink: 0 }}>
+                        <div style={{ border: "1px solid #e4e4e4", borderRadius: 22, padding: "8px 12px", background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", transition: "border-color .2s, box-shadow .2s" }}>
                           <textarea
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
-                            placeholder={images.length ? "Describe the vibe..." : "Upload images first..."}
+                            placeholder={images.length ? "Describe the vibe or ask anything..." : "Upload images first..."}
                             disabled={aiLoading}
                             rows={1}
-                            style={{ flex: 1, background: "#f8f8f8", border: "1px solid #e8e8e8", borderRadius: 10, padding: "9px 12px", color: "#000", fontSize: 12, fontFamily: "sans-serif", outline: "none", resize: "none", lineHeight: 1.5, transition: "border-color .15s" }}
-                            onFocus={(e) => { e.target.style.borderColor = "#ccc"; }}
-                            onBlur={(e) => { e.target.style.borderColor = "#e8e8e8"; }}
+                            style={{ width: "100%", background: "transparent", border: "none", outline: "none", resize: "none", color: "#222", fontSize: 13, fontFamily: "sans-serif", lineHeight: 1.5, padding: "4px 2px", minHeight: 28 }}
                           />
-                          <button
-                            onClick={() => sendMsg()}
-                            disabled={aiLoading || !input.trim()}
-                            style={{ padding: "8px 14px", background: aiLoading || !input.trim() ? "#f0f0f0" : "#000", border: "none", borderRadius: 10, color: aiLoading || !input.trim() ? "#bbb" : "#fff", fontSize: 12, fontFamily: "sans-serif", fontWeight: 600, cursor: aiLoading || !input.trim() ? "default" : "pointer", whiteSpace: "nowrap", transition: "all .15s" }}
-                          >
-                            ↑
-                          </button>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6, gap: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                              <button
+                                onClick={() => {
+                                  if (!images.length || aiLoading) return;
+                                  setMsgs((prev) => [...prev, { role: "user", text: "✦ Auto-arrange grid" }]);
+                                  setAiLoading(true);
+                                  sendMsg("Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm");
+                                }}
+                                disabled={!images.length || aiLoading}
+                                title="Auto-arrange grid"
+                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
+                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                              >
+                                ⊞ Grid
+                              </button>
+                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
+                              <button
+                                onClick={() => { if (images.length) setActivePanel("client"); }}
+                                disabled={!images.length}
+                                title="Scan for content gaps"
+                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
+                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                              >
+                                ◎ Gaps
+                              </button>
+                              <div style={{ width: 1, height: 14, background: "#e8e8e8", margin: "0 2px" }} />
+                              <button
+                                onClick={() => {
+                                  if (!images.length || aiLoading) return;
+                                  setMsgs((prev) => [...prev, { role: "user", text: "✦ Suggest caption ideas" }]);
+                                  setAiLoading(true);
+                                  sendMsg("Look at my grid and suggest 3 caption ideas for my next post — short, punchy, on-brand");
+                                }}
+                                disabled={!images.length || aiLoading}
+                                title="Generate caption ideas"
+                                style={{ height: 28, display: "flex", alignItems: "center", gap: 4, padding: "0 10px", background: "transparent", border: "1px solid transparent", borderRadius: 14, color: images.length ? "#666" : "#ccc", fontSize: 11, fontFamily: "sans-serif", fontWeight: 500, cursor: images.length ? "pointer" : "default", transition: "all .15s" }}
+                                onMouseEnter={(e) => { if (images.length) { (e.currentTarget as HTMLElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0"; } }}
+                                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                              >
+                                ✎ Caption
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => sendMsg()}
+                              disabled={aiLoading || !input.trim()}
+                              style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: !aiLoading && input.trim() ? "#000" : "#f0f0f0", border: "none", color: !aiLoading && input.trim() ? "#fff" : "#bbb", fontSize: 14, cursor: !aiLoading && input.trim() ? "pointer" : "default", transition: "all .15s", flexShrink: 0 }}
+                            >
+                              ↑
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </>
