@@ -12,6 +12,7 @@ import { LoadingBubble } from "@/components/ui/loading-bubble";
 import { TypingEffect } from "@/components/ui/typing-effect";
 import { DotLoader } from "@/components/ui/dot-loader";
 import { SpecialText } from "@/components/ui/special-text";
+import { motion, useMotionValue, useMotionTemplate } from "motion/react";
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -71,6 +72,50 @@ const CircularCropModal = React.lazy(
 );
 const CropModal = React.lazy(() => import("./modals/CropModal"));
 const PreviewModal = React.lazy(() => import("./modals/PreviewModal"));
+
+// ── Chat bubble with joly-button effects ────────────────────────────────────
+
+const ChatBubble = React.memo(function ChatBubble({
+  children,
+  variant,
+  style,
+}: {
+  children: React.ReactNode;
+  variant: "user" | "ai";
+  style?: React.CSSProperties;
+}) {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const background = useMotionTemplate`radial-gradient(circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.12), transparent 80%)`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 500, damping: 32, mass: 0.8 }}
+      whileHover={{ scale: 1.008 }}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        mouseX.set(e.clientX - rect.left);
+        mouseY.set(e.clientY - rect.top);
+      }}
+      className={
+        variant === "user"
+          ? "group relative overflow-hidden rounded-[18px] rounded-br-[6px] bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#111]/90 shadow-lg shadow-black/15"
+          : "group relative overflow-hidden rounded-[18px] rounded-tl-[6px] border border-gray-100 bg-gradient-to-br from-[#fafafa] via-white to-[#f7f7f7] shadow-sm shadow-black/[0.03]"
+      }
+      style={style}
+    >
+      <motion.div
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{ background }}
+      />
+      <div className="relative z-10" style={{ padding: "10px 14px" }}>
+        {children}
+      </div>
+    </motion.div>
+  );
+});
 
 // ── AI smiley face frames (7x7 grid = 49 dots) ─────────────────────────────
 // Row layout: 0-6, 7-13, 14-20, 21-27, 28-34, 35-41, 42-48
@@ -3851,7 +3896,11 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
               </div>
 
               {activePanel && (
-                <div
+                <motion.div
+                  key={activePanel}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
                   style={{
                     width: 360,
                     flexShrink: 0,
@@ -3983,13 +4032,22 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                           if (m.role === "user")
                             return (
                               <div key={i} style={{ display: "flex", justifyContent: "flex-end", marginTop: 2 }}>
-                                <div style={{ maxWidth: "85%", padding: "10px 14px", background: "#111", borderRadius: "18px 18px 4px 18px", color: "#fff", fontSize: 12.5, lineHeight: 1.5, fontFamily: "sans-serif", fontWeight: 400 }}>{m.text}</div>
+                                <ChatBubble variant="user" style={{ maxWidth: "85%", color: "#fff", fontSize: 12.5, lineHeight: 1.5, fontFamily: "sans-serif" }}>
+                                  {m.text}
+                                </ChatBubble>
                               </div>
                             );
                           return (
                             <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 2 }}>
-                              <div style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}>✦</div>
-                              <div style={{ maxWidth: "88%", padding: "10px 14px", background: "#fafafa", borderRadius: "4px 18px 18px 18px", color: "#333", fontSize: 12.5, lineHeight: 1.6, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{renderAiText(m.text)}</div>
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}
+                              >✦</motion.div>
+                              <ChatBubble variant="ai" style={{ maxWidth: "88%", color: "#333", fontSize: 12.5, lineHeight: 1.6, fontFamily: "sans-serif" }}>
+                                {renderAiText(m.text)}
+                              </ChatBubble>
                             </div>
                           );
                         })}
@@ -5657,7 +5715,7 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                       )}
                     </div>
                   )}
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
