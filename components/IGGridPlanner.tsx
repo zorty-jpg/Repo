@@ -101,8 +101,8 @@ const ChatBubble = React.memo(function ChatBubble({
       }}
       className={
         variant === "user"
-          ? "group relative overflow-hidden rounded-[18px] rounded-br-[6px] bg-gradient-to-br from-[#111] via-[#1a1a1a] to-[#111]/90 shadow-lg shadow-black/15"
-          : "group relative overflow-hidden rounded-[18px] rounded-tl-[6px] border border-gray-100 bg-gradient-to-br from-[#fafafa] via-white to-[#f7f7f7] shadow-sm shadow-black/[0.03]"
+          ? "group relative overflow-hidden rounded-[4px] rounded-tl-[14px] rounded-tr-[14px] rounded-bl-[14px] bg-gradient-to-br from-[#0a0a0a] via-[#141414] to-[#0a0a0a]/95 shadow-md shadow-black/20"
+          : "group relative overflow-hidden rounded-[4px] rounded-tr-[14px] rounded-br-[14px] rounded-bl-[14px] border border-[#eaeaea] bg-[#fafafa] shadow-sm shadow-black/[0.02]"
       }
       style={style}
     >
@@ -2629,21 +2629,21 @@ export default function IGGridPlanner() {
       });
       content.push({
         type: "text",
-        text: `You're a creative director reviewing this Instagram feed. Study the images to figure out the brand, audience, and vibe.${bCtx}
+        text: `You are a senior creative director auditing this Instagram feed. Infer the brand positioning, audience, and visual identity from the images alone.${bCtx}
 
-Be conversational and warm — like texting a client you like working with. Use **bold** for section titles (on their own line), bullet points (•) for lists, and keep paragraphs short (1-2 sentences).
+Be direct and specific. No pleasantries. Use **bold** for section labels (own line), bullets (•) for lists, short paragraphs. Reference real creative concepts — color temperature, compositional rhythm, content pillars, visual pacing.
 
-Cover these:
+Deliver:
 
-**What's missing** — content types absent from the feed
+**The gap** — what's conspicuously absent. Name it precisely.
 
-**Aesthetic gaps** — where the visual flow breaks or gets monotonous
+**Visual monotony** — where the grid stalls. Be blunt about what's repetitive.
 
-**Top 5 post ideas** — specific, ready-to-shoot concepts
+**5 shoots to commission** — specific, art-directable concepts. Include framing and mood.
 
-**Quick wins this week** — low-effort, high-impact moves
+**This week** — 3 moves that shift the feed immediately with existing assets.
 
-End with an encouraging nudge.`,
+Close with one directive. Not a suggestion — a call.`,
       });
       const res = await fetch("/api/anthropic", {
         method: "POST",
@@ -2696,19 +2696,23 @@ End with an encouraging nudge.`,
         ci.niche || ci.tone
           ? `\nClient: ${[ci.niche, ci.tone].filter(Boolean).join(", ")}.`
           : "";
-      const sys = `You are a friendly, sharp Instagram content strategist — like a creative director texting a client.${bS} Grid has ${images.length} images.
+      const sys = `You are a senior creative director with 15 years in visual branding. You've built feeds for luxury, editorial, DTC, and lifestyle brands. You don't sugarcoat. You give clear, decisive creative direction — not suggestions, but calls.${bS} Grid has ${images.length} images.
 
-Tone: conversational, warm, confident. Never robotic. Use "you/your" not "the brand." Keep it punchy.
+Your voice:
+• Direct and confident. Say "Do this" not "You could try."
+• Opinionated — you have a point of view and you commit to it.
+• Economy of words. Every sentence earns its place. No filler.
+• You speak like a creative brief, not a chatbot. No emojis. No exclamation marks.
+• Reference real visual concepts: negative space, color blocking, rhythm, pacing, editorial sequencing, tonal range.
 
-Formatting rules:
-- Use **bold** for key terms or emphasis
-- Use short bullet points (• not -) for lists
-- Use line breaks between sections
-- Keep paragraphs to 1-2 sentences max
-- Never use ### or giant headers — just **bold section titles** on their own line
-- End with a quick actionable nudge when relevant
+Formatting:
+• **Bold** for key terms, directives, and section labels
+• Bullet points (•) for actionable lists — no more than 5 per section
+• One blank line between sections. No walls of text.
+• Section labels are **bold on their own line** — never use # headers
+• End with one clear next step. Not encouragement — a directive.
 
-If asked to reorder by vibe AND images exist: give 1 casual sentence about the new vibe, then a JSON array of all ${images.length} indices in new order. Nothing else.`;
+If asked to reorder by vibe AND images exist: state the logic in one sentence, then output a JSON array of all ${images.length} indices in the new order. Nothing else.`;
       const hist = msgs
         .filter((m) => m.role !== "sys")
         .map((m) => ({
@@ -4006,13 +4010,20 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                         {/* Spacer pushes messages to bottom */}
                         <div style={{ flex: 1 }} />
                         {!msgs.length && (
-                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, padding: "30px 10px" }}>
-                            <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #f5f5f5, #eee)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>✦</div>
-                            <div style={{ fontSize: 14, color: "#444", fontFamily: "sans-serif", fontWeight: 600 }}>What vibe are we going for?</div>
-                            <div style={{ fontSize: 11, color: "#aaa", fontFamily: "sans-serif", maxWidth: 220, textAlign: "center", lineHeight: 1.5 }}>I can rearrange your grid, find content gaps, or brainstorm captions</div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginTop: 2 }}>
-                              {["moody editorial", "warm & vibrant", "dark minimal", "what's missing?"].map((t, i) => (
-                                <button key={i} onClick={() => sendMsg(t)} className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-500 transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 active:scale-95" style={{ fontFamily: "sans-serif" }}>
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", gap: 16, padding: "20px 4px 10px" }}>
+                            <div style={{ borderLeft: "2px solid #e0e0e0", paddingLeft: 12 }}>
+                              <div style={{ fontSize: 11, color: "#999", fontFamily: "sans-serif", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 6 }}>Creative Director</div>
+                              <div style={{ fontSize: 13, color: "#333", fontFamily: "sans-serif", fontWeight: 400, lineHeight: 1.6 }}>Brief me. Grid reorder, content audit, caption direction — tell me what you need.</div>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                              {[
+                                "audit this grid",
+                                "reorder — editorial flow",
+                                "reorder — dark moody",
+                                "what am I missing",
+                                "caption direction",
+                              ].map((t, i) => (
+                                <button key={i} onClick={() => sendMsg(t)} className="border border-[#e0e0e0] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#888] transition-all hover:border-[#999] hover:bg-[#fafafa] hover:text-[#333] active:scale-[0.97]" style={{ fontFamily: "sans-serif", borderRadius: 4 }}>
                                   {t}
                                 </button>
                               ))}
@@ -4043,8 +4054,8 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}
-                              >✦</motion.div>
+                                style={{ width: 26, height: 26, borderRadius: 4, background: "#0a0a0a", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700, letterSpacing: 0.5 }}
+                              >CD</motion.div>
                               <ChatBubble variant="ai" style={{ maxWidth: "88%", color: "#333", fontSize: 12.5, lineHeight: 1.6, fontFamily: "sans-serif" }}>
                                 {renderAiText(m.text)}
                               </ChatBubble>
@@ -4084,7 +4095,7 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                               {[
                                 { label: "Grid", icon: "⊞", action: () => { if (!images.length || aiLoading) return; setMsgs((p) => [...p, { role: "user", text: "✦ Auto-arrange grid" }]); setAiLoading(true); sendMsg("Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm"); }, disabled: !images.length || aiLoading },
                                 { label: gapLoading ? "Scanning..." : "Gaps", icon: "◎", action: () => { if (images.length && !gapLoading) detectGaps({ toChat: true }); }, disabled: !images.length || gapLoading },
-                                { label: "Caption", icon: "✎", action: () => { if (!images.length || aiLoading) return; setMsgs((p) => [...p, { role: "user", text: "✦ Caption ideas" }]); setAiLoading(true); sendMsg("Suggest 3 caption ideas for my next post — short, punchy, on-brand"); }, disabled: !images.length || aiLoading },
+                                { label: "Caption", icon: "✎", action: () => { if (!images.length || aiLoading) return; setMsgs((p) => [...p, { role: "user", text: "Caption direction" }]); setAiLoading(true); sendMsg("Write 3 caption options for the next post. One short and direct, one with a hook, one long-form with a CTA. No hashtag spam. Write like a copywriter, not an influencer."); }, disabled: !images.length || aiLoading },
                                 { label: "Crop", icon: "⊡", action: () => ssRef.current?.click(), disabled: false },
                               ].map((btn, idx) => (
                                 <button
