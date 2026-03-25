@@ -70,6 +70,94 @@ const CircularCropModal = React.lazy(
 const CropModal = React.lazy(() => import("./modals/CropModal"));
 const PreviewModal = React.lazy(() => import("./modals/PreviewModal"));
 
+// ── Markdown renderer for AI messages ────────────────────────────────────────
+
+function renderAiText(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+
+  const renderInline = (line: string, key: string): React.ReactNode => {
+    // Bold: **text**
+    const parts: React.ReactNode[] = [];
+    const regex = /\*\*(.+?)\*\*/g;
+    let lastIdx = 0;
+    let match;
+    let k = 0;
+    while ((match = regex.exec(line)) !== null) {
+      if (match.index > lastIdx) {
+        parts.push(line.slice(lastIdx, match.index));
+      }
+      parts.push(
+        <strong key={`${key}-b${k++}`} style={{ fontWeight: 600, color: "#000" }}>
+          {match[1]}
+        </strong>
+      );
+      lastIdx = regex.lastIndex;
+    }
+    if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+    if (!parts.length) return null;
+    return <span key={key}>{parts}</span>;
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    // Empty line → small spacer
+    if (!line) {
+      elements.push(<div key={`s${i}`} style={{ height: 6 }} />);
+      i++;
+      continue;
+    }
+
+    // Bullet point (•, -, *, numbered)
+    const bulletMatch = line.match(/^(?:[•\-\*]|\d+[\.\)])\s+(.*)/);
+    if (bulletMatch) {
+      const bulletItems: React.ReactNode[] = [];
+      while (i < lines.length) {
+        const bl = lines[i].trim();
+        const bm = bl.match(/^(?:[•\-\*]|\d+[\.\)])\s+(.*)/);
+        if (!bm) break;
+        bulletItems.push(
+          <div key={`li${i}`} style={{ display: "flex", gap: 6, alignItems: "flex-start", padding: "2px 0" }}>
+            <span style={{ color: "#999", fontSize: 8, marginTop: 4, flexShrink: 0 }}>●</span>
+            <span>{renderInline(bm[1], `lit${i}`)}</span>
+          </div>
+        );
+        i++;
+      }
+      elements.push(
+        <div key={`ul${i}`} style={{ display: "flex", flexDirection: "column", gap: 1, padding: "2px 0 2px 4px" }}>
+          {bulletItems}
+        </div>
+      );
+      continue;
+    }
+
+    // Bold-only line = section title
+    const titleMatch = line.match(/^\*\*(.+?)\*\*$/);
+    if (titleMatch) {
+      elements.push(
+        <div key={`h${i}`} style={{ fontWeight: 600, fontSize: 12, color: "#000", padding: "4px 0 1px", letterSpacing: 0.2 }}>
+          {titleMatch[1]}
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <div key={`p${i}`} style={{ padding: "1px 0" }}>
+        {renderInline(line, `pl${i}`)}
+      </div>
+    );
+    i++;
+  }
+
+  return <>{elements}</>;
+}
+
 // ── Sub-components ──────────────────────────────────────────────────────────
 
 const InlineText = React.memo(function InlineText({
@@ -2467,7 +2555,21 @@ export default function IGGridPlanner() {
       });
       content.push({
         type: "text",
-        text: `Analyze this Instagram feed. Study the images to infer the brand niche, audience, aesthetic, and content pillars from what you see.${bCtx}\n\nIdentify:\n**MISSING CONTENT TYPES** — what's absent from the feed\n**AESTHETIC GAPS** — visual monotony, missing variety\n**TOP 5 POST IDEAS** — specific, actionable\n**QUICK WINS THIS WEEK** — low-effort, high-impact`,
+        text: `You're a creative director reviewing this Instagram feed. Study the images to figure out the brand, audience, and vibe.${bCtx}
+
+Be conversational and warm — like texting a client you like working with. Use **bold** for section titles (on their own line), bullet points (•) for lists, and keep paragraphs short (1-2 sentences).
+
+Cover these:
+
+**What's missing** — content types absent from the feed
+
+**Aesthetic gaps** — where the visual flow breaks or gets monotonous
+
+**Top 5 post ideas** — specific, ready-to-shoot concepts
+
+**Quick wins this week** — low-effort, high-impact moves
+
+End with an encouraging nudge.`,
       });
       const res = await fetch("/api/anthropic", {
         method: "POST",
@@ -2520,7 +2622,19 @@ export default function IGGridPlanner() {
         ci.niche || ci.tone
           ? `\nClient: ${[ci.niche, ci.tone].filter(Boolean).join(", ")}.`
           : "";
-      const sys = `You are an expert Instagram content strategist.${bS} Grid has ${images.length} images. If asked to reorder by vibe AND images exist, give: 1. One sentence (max 12 words). 2. JSON array of all ${images.length} indices in new order. Otherwise chat. Be concise.`;
+      const sys = `You are a friendly, sharp Instagram content strategist — like a creative director texting a client.${bS} Grid has ${images.length} images.
+
+Tone: conversational, warm, confident. Never robotic. Use "you/your" not "the brand." Keep it punchy.
+
+Formatting rules:
+- Use **bold** for key terms or emphasis
+- Use short bullet points (• not -) for lists
+- Use line breaks between sections
+- Keep paragraphs to 1-2 sentences max
+- Never use ### or giant headers — just **bold section titles** on their own line
+- End with a quick actionable nudge when relevant
+
+If asked to reorder by vibe AND images exist: give 1 casual sentence about the new vibe, then a JSON array of all ${images.length} indices in new order. Nothing else.`;
       const hist = msgs
         .filter((m) => m.role !== "sys")
         .map((m) => ({
@@ -3848,7 +3962,7 @@ export default function IGGridPlanner() {
                           return (
                             <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                               <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f0f0f0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#999", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
-                              <div style={{ maxWidth: "82%", padding: "9px 14px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, color: "#222", fontSize: 12, lineHeight: 1.65, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{m.text}</div>
+                              <div style={{ maxWidth: "88%", padding: "10px 14px", background: "#f7f7f7", borderRadius: 20, borderTopLeftRadius: 6, color: "#333", fontSize: 12, lineHeight: 1.6, fontFamily: "sans-serif", border: "1px solid #f0f0f0" }}>{renderAiText(m.text)}</div>
                             </div>
                           );
                         })}
