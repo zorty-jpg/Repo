@@ -10,6 +10,8 @@ import React, {
 import { supabase } from "@/lib/supabase";
 import { LoadingBubble } from "@/components/ui/loading-bubble";
 import { TypingEffect } from "@/components/ui/typing-effect";
+import { DotLoader } from "@/components/ui/dot-loader";
+import { SpecialText } from "@/components/ui/special-text";
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -69,6 +71,33 @@ const CircularCropModal = React.lazy(
 );
 const CropModal = React.lazy(() => import("./modals/CropModal"));
 const PreviewModal = React.lazy(() => import("./modals/PreviewModal"));
+
+// ── AI smiley face frames (7x7 grid = 49 dots) ─────────────────────────────
+// Row layout: 0-6, 7-13, 14-20, 21-27, 28-34, 35-41, 42-48
+const smileyBase = [9, 11, 30, 32, 37, 38, 39]; // eyes + smile
+const smileyLookLeft = [8, 10, 30, 32, 37, 38, 39]; // eyes shift left
+const smileyLookRight = [10, 12, 30, 32, 37, 38, 39]; // eyes shift right
+const smileyBlink = [30, 32, 37, 38, 39]; // no eyes (blink)
+const smileyWink = [9, 30, 32, 37, 38, 39]; // one eye
+const smileyBig = [9, 11, 29, 33, 36, 40, 37, 38, 39]; // wide smile
+
+const aiSmileyFrames: number[][] = [
+  smileyBase, smileyBase, smileyBase,
+  smileyLookLeft, smileyLookLeft,
+  smileyBase, smileyBase,
+  smileyLookRight, smileyLookRight,
+  smileyBase, smileyBase, smileyBase,
+  smileyBlink, // blink
+  smileyBase, smileyBase,
+  smileyBig, smileyBig,
+  smileyBase, smileyBase,
+  smileyWink, // wink
+  smileyBase, smileyBase, smileyBase,
+  smileyLookRight, smileyLookLeft,
+  smileyBase, smileyBase,
+  smileyBlink, // blink
+  smileyBase, smileyBase,
+];
 
 // ── Markdown renderer for AI messages ────────────────────────────────────────
 
@@ -3964,11 +3993,15 @@ If asked to reorder by vibe AND images exist: give 1 casual sentence about the n
                         })}
 
                         {aiLoading && (
-                          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 2 }}>
-                            <div style={{ width: 28, height: 28, borderRadius: 10, background: "linear-gradient(135deg, #f0f0f0, #e8e8e8)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontSize: 10, fontFamily: "sans-serif", fontWeight: 700 }}>✦</div>
-                            <div style={{ padding: "10px 14px", background: "#fafafa", borderRadius: "4px 18px 18px 18px", border: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 2 }}>
-                              <TypingEffect texts={["thinking", "analyzing", "crafting"]} className="!text-xs !font-normal text-gray-400" typingSpeed={80} rotationInterval={2000} />
-                            </div>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 2, padding: "4px 0" }}>
+                            <DotLoader
+                              frames={aiSmileyFrames}
+                              className="gap-px"
+                              repeatCount={-1}
+                              duration={200}
+                              dotClassName="bg-black/10 [&.active]:bg-black/60 size-[3px] rounded-full"
+                            />
+                            <SpecialText className="!text-xs !font-medium text-gray-400" speed={35}>typing...</SpecialText>
                           </div>
                         )}
                         <div ref={chatEnd} />
