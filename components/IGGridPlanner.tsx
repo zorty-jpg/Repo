@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import { LoadingBubble } from "@/components/ui/loading-bubble";
-import { PromptInputBox } from "@/components/ui/ai-prompt-box";
+// PromptInputBox available at @/components/ui/ai-prompt-box if needed
 
 // ── Imported types & constants ──────────────────────────────────────────────
 import type {
@@ -2444,11 +2444,14 @@ export default function IGGridPlanner() {
     setGapLoading(false);
   }, [images, gapLoading, clientForm]);
 
-  const sendMsg = useCallback(async () => {
-    if (!input.trim() || aiLoading) return;
-    const userText = input.trim();
+  const sendMsg = useCallback(async (overrideMsg?: string) => {
+    const raw = overrideMsg ?? input;
+    if (!raw.trim() || aiLoading) return;
+    const userText = raw.trim();
     setInput("");
-    setMsgs((prev) => [...prev, { role: "user", text: userText }]);
+    if (!overrideMsg) {
+      setMsgs((prev) => [...prev, { role: "user", text: userText }]);
+    }
     setAiLoading(true);
     try {
       const ci = active?.clientInfo || {
@@ -3748,295 +3751,108 @@ export default function IGGridPlanner() {
 
                   {activePanel === "chat" && (
                     <>
-                      <div
-                        style={{
-                          flex: 1,
-                          overflowY: "auto",
-                          padding: "20px 18px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 14,
-                        }}
-                      >
-                        {migrationMsg && (
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                            }}
-                          >
-                            <div
-                              style={{
-                                flex: 1,
-                                height: 1,
-                                background: "#efefef",
-                              }}
-                            />
-                            <span
-                              style={{
-                                color: "#68a070",
-                                fontSize: 11,
-                                fontFamily: "sans-serif",
-                                fontWeight: 600,
-                              }}
-                            >
-                              {migrationMsg}
-                            </span>
-                            <div
-                              style={{
-                                flex: 1,
-                                height: 1,
-                                background: "#efefef",
-                              }}
-                            />
-                          </div>
-                        )}
-
+                      {/* Messages area — flex-grows to fill, scrolls */}
+                      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
                         {!msgs.length && (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 6,
-                            }}
-                          >
-                            <div style={S}>Try asking...</div>
-                            {[
-                              '"moody and dark, cool tones, editorial"',
-                              '"warm and vibrant, alternate light and dark"',
-                              '"what makes a good editorial grid?"',
-                              '"what content is missing from this feed?"',
-                            ].map((t, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  color: "#aaa",
-                                  fontSize: 12,
-                                  fontStyle: "italic",
-                                  fontFamily: "sans-serif",
-                                  padding: "8px 12px",
-                                  background: "#f8f8f8",
-                                  borderRadius: 8,
-                                  cursor: "pointer",
-                                  border: "1px solid #f0f0f0",
-                                }}
-                                onClick={() =>
-                                  setInput(t.replace(/"/g, ""))
-                                }
-                              >
-                                {t}
-                              </div>
-                            ))}
+                          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 10, padding: "20px 0" }}>
+                            <div style={{ fontSize: 22, marginBottom: 4 }}>✦</div>
+                            <div style={{ fontSize: 12, color: "#999", fontFamily: "sans-serif", fontWeight: 500, marginBottom: 8 }}>Ask anything about your grid</div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5, width: "100%" }}>
+                              {[
+                                "moody and dark, cool tones, editorial",
+                                "warm and vibrant, alternate light and dark",
+                                "what makes a good editorial grid?",
+                                "what content is missing from this feed?",
+                              ].map((t, i) => (
+                                <div key={i} onClick={() => { setInput(t); sendMsg(); }} style={{ color: "#888", fontSize: 11, fontFamily: "sans-serif", padding: "7px 11px", background: "#fafafa", borderRadius: 8, cursor: "pointer", border: "1px solid #f0f0f0", transition: "all .15s" }} onMouseEnter={(e) => { (e.target as HTMLElement).style.background = "#f0f0f0"; }} onMouseLeave={(e) => { (e.target as HTMLElement).style.background = "#fafafa"; }}>
+                                  {t}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
                         {msgs.map((m, i) => {
                           if (m.role === "sys")
                             return (
-                              <div
-                                key={i}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 10,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    height: 1,
-                                    background: "#efefef",
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    color: "#bbb",
-                                    fontSize: 11,
-                                    fontFamily: "sans-serif",
-                                  }}
-                                >
-                                  {m.text}
-                                </span>
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    height: 1,
-                                    background: "#efefef",
-                                  }}
-                                />
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
+                                <span style={{ color: "#bbb", fontSize: 10, fontFamily: "sans-serif", whiteSpace: "nowrap" }}>{m.text}</span>
+                                <div style={{ flex: 1, height: 1, background: "#f0f0f0" }} />
                               </div>
                             );
                           if (m.role === "user")
                             return (
-                              <div
-                                key={i}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "flex-end",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    maxWidth: "72%",
-                                    padding: "10px 14px",
-                                    background: "#000",
-                                    borderRadius: "16px 16px 4px 16px",
-                                    color: "#fff",
-                                    fontSize: 12,
-                                    lineHeight: 1.6,
-                                    fontFamily: "sans-serif",
-                                  }}
-                                >
-                                  {m.text}
-                                </div>
+                              <div key={i} style={{ display: "flex", justifyContent: "flex-end" }}>
+                                <div style={{ maxWidth: "80%", padding: "8px 12px", background: "#000", borderRadius: "14px 14px 4px 14px", color: "#fff", fontSize: 12, lineHeight: 1.5, fontFamily: "sans-serif" }}>{m.text}</div>
                               </div>
                             );
                           return (
-                            <div
-                              key={i}
-                              style={{ display: "flex", gap: 8 }}
-                            >
-                              <div
-                                style={{
-                                  width: 26,
-                                  height: 26,
-                                  borderRadius: "50%",
-                                  background: "#000",
-                                  flexShrink: 0,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "#fff",
-                                  fontSize: 10,
-                                  fontFamily: "sans-serif",
-                                  fontWeight: 700,
-                                  marginTop: 2,
-                                }}
-                              >
-                                AI
-                              </div>
-                              <div
-                                style={{
-                                  maxWidth: "78%",
-                                  padding: "10px 14px",
-                                  background: "#f8f8f8",
-                                  borderRadius: "4px 16px 16px 16px",
-                                  color: "#000",
-                                  fontSize: 12,
-                                  lineHeight: 1.7,
-                                  fontFamily: "sans-serif",
-                                }}
-                              >
-                                {m.text}
-                              </div>
+                            <div key={i} style={{ display: "flex", gap: 7 }}>
+                              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#000", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700, marginTop: 1 }}>AI</div>
+                              <div style={{ maxWidth: "82%", padding: "8px 12px", background: "#f5f5f5", borderRadius: "4px 14px 14px 14px", color: "#000", fontSize: 12, lineHeight: 1.65, fontFamily: "sans-serif" }}>{m.text}</div>
                             </div>
                           );
                         })}
 
                         {aiLoading && (
-                          <div style={{ display: "flex", gap: 8 }}>
-                            <div
-                              style={{
-                                width: 26,
-                                height: 26,
-                                borderRadius: "50%",
-                                background: "#000",
-                                flexShrink: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "#fff",
-                                fontSize: 10,
-                                fontFamily: "sans-serif",
-                                fontWeight: 700,
-                              }}
-                            >
-                              AI
-                            </div>
-                            <div
-                              style={{
-                                padding: "10px 14px",
-                                background: "#f8f8f8",
-                                borderRadius: "4px 16px 16px 16px",
-                                display: "flex",
-                                gap: 4,
-                                alignItems: "center",
-                              }}
-                            >
-                              {[0, 1, 2].map((i) => (
-                                <div
-                                  key={i}
-                                  style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: "50%",
-                                    background: "#bbb",
-                                    animation: `pulse 1.4s ease-in-out ${i * 0.22}s infinite`,
-                                  }}
-                                />
-                              ))}
+                          <div style={{ display: "flex", gap: 7 }}>
+                            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#000", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700 }}>AI</div>
+                            <div style={{ padding: "8px 12px", background: "#f5f5f5", borderRadius: "4px 14px 14px 14px", display: "flex", gap: 4, alignItems: "center" }}>
+                              {[0, 1, 2].map((i) => (<div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: "#bbb", animation: `pulse 1.4s ease-in-out ${i * 0.22}s infinite` }} />))}
                             </div>
                           </div>
                         )}
-
                         <div ref={chatEnd} />
                       </div>
-                      <div style={{ padding: "8px 10px", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
-                        <PromptInputBox
-                          onSend={(message) => {
-                            if (!message.trim() || aiLoading) return;
-                            setInput(message);
-                            // Trigger send on next tick after input state updates
-                            setTimeout(() => {
-                              setInput("");
-                              // Inline the sendMsg logic with the message directly
-                              const userText = message.trim();
-                              setMsgs((prev) => [...prev, { role: "user", text: userText }]);
+
+                      {/* Input area — white themed, grid-specific actions */}
+                      <div style={{ padding: "10px 14px", borderTop: "1px solid #f0f0f0", flexShrink: 0 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                          <button
+                            onClick={() => {
+                              if (!images.length || aiLoading) return;
+                              const fakeMsg = "Reorder my grid for the best aesthetic flow — alternate tones, balance light and dark, create visual rhythm";
+                              setMsgs((prev) => [...prev, { role: "user", text: "✦ Auto-arrange grid" }]);
                               setAiLoading(true);
-                              (async () => {
-                                try {
-                                  const ci = active?.clientInfo || { niche: "", audience: "", tone: "", pillars: "", competitors: "", notes: "" };
-                                  const bS = ci.niche || ci.tone ? `\nClient: ${[ci.niche, ci.tone].filter(Boolean).join(", ")}.` : "";
-                                  const sys = `You are an expert Instagram content strategist.${bS} Grid has ${images.length} images. If asked to reorder by vibe AND images exist, give: 1. One sentence (max 12 words). 2. JSON array of all ${images.length} indices in new order. Otherwise chat. Be concise.`;
-                                  const hist = msgs.filter((m) => m.role !== "sys").map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
-                                  const kw = /rearrange|reorder|sort|layout|vibe|arrange|reorganize|order|dark|light|moody|minimal|vibrant|editorial|aesthetic|grid/i;
-                                  const wantR = images.length > 0 && kw.test(userText);
-                                  let uc: string | { type: string; text?: string; source?: { type: string; media_type: string; data: string } }[] = userText;
-                                  if (wantR) {
-                                    const arr: { type: string; text?: string; source?: { type: string; media_type: string; data: string } }[] = [];
-                                    images.forEach((img, i) => { arr.push({ type: "text", text: `Image ${i}:` }); arr.push({ type: "image", source: { type: "base64", media_type: img.src.split(";")[0].split(":")[1], data: img.src.split(",")[1] } }); });
-                                    arr.push({ type: "text", text: userText });
-                                    uc = arr;
-                                  }
-                                  const res = await fetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: sys, messages: [...hist, { role: "user", content: uc }] }) });
-                                  const data = await res.json();
-                                  if (!res.ok || data.error || !data.content) {
-                                    setMsgs((prev) => [...prev, { role: "ai", text: `⚠ ${data.error?.message || data.error?.error?.message || (typeof data.error === "string" ? data.error : null) || "API error — check your ANTHROPIC_API_KEY"}` }]);
-                                    setAiLoading(false);
-                                    return;
-                                  }
-                                  const text = data.content.find((b: { type: string }) => b.type === "text")?.text || "";
-                                  const jm = text.match(/\[[\d,\s]+\]/);
-                                  const clean = text.replace(/\[[\d,\s]+\]/, "").replace(/```json?|```/g, "").trim();
-                                  setMsgs((prev) => [...prev, { role: "ai", text: clean || "(no response)" }]);
-                                  if (jm && wantR) {
-                                    const order = JSON.parse(jm[0]) as number[];
-                                    if (order.length === images.length && new Set(order).size === images.length) {
-                                      updateProfile((p) => ({ ...p, images: order.map((i) => p.images[i]) }));
-                                      setMsgs((prev) => [...prev, { role: "sys", text: "✦ GRID REORDERED" }]);
-                                    }
-                                  }
-                                } catch {
-                                  setMsgs((prev) => [...prev, { role: "ai", text: "Error. Try again." }]);
-                                }
-                                setAiLoading(false);
-                              })();
-                            }, 0);
-                          }}
-                          isLoading={aiLoading}
-                          placeholder={images.length ? "Describe the vibe or ask anything..." : "Upload images first..."}
-                        />
+                              sendMsg(fakeMsg);
+                            }}
+                            disabled={!images.length || aiLoading}
+                            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", background: images.length ? "#000" : "#f0f0f0", border: "none", borderRadius: 8, color: images.length ? "#fff" : "#bbb", fontSize: 10, fontFamily: "sans-serif", fontWeight: 600, cursor: images.length ? "pointer" : "default", letterSpacing: 0.5, transition: "all .15s" }}
+                          >
+                            ⊞ Auto Grid
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!images.length || aiLoading) return;
+                              setActivePanel("client");
+                            }}
+                            disabled={!images.length}
+                            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 8, color: images.length ? "#555" : "#ccc", fontSize: 10, fontFamily: "sans-serif", fontWeight: 600, cursor: images.length ? "pointer" : "default", letterSpacing: 0.5, transition: "all .15s" }}
+                          >
+                            ◎ Gap Scan
+                          </button>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, alignItems: "flex-end" }}>
+                          <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
+                            placeholder={images.length ? "Describe the vibe..." : "Upload images first..."}
+                            disabled={aiLoading}
+                            rows={1}
+                            style={{ flex: 1, background: "#f8f8f8", border: "1px solid #e8e8e8", borderRadius: 10, padding: "9px 12px", color: "#000", fontSize: 12, fontFamily: "sans-serif", outline: "none", resize: "none", lineHeight: 1.5, transition: "border-color .15s" }}
+                            onFocus={(e) => { e.target.style.borderColor = "#ccc"; }}
+                            onBlur={(e) => { e.target.style.borderColor = "#e8e8e8"; }}
+                          />
+                          <button
+                            onClick={() => sendMsg()}
+                            disabled={aiLoading || !input.trim()}
+                            style={{ padding: "8px 14px", background: aiLoading || !input.trim() ? "#f0f0f0" : "#000", border: "none", borderRadius: 10, color: aiLoading || !input.trim() ? "#bbb" : "#fff", fontSize: 12, fontFamily: "sans-serif", fontWeight: 600, cursor: aiLoading || !input.trim() ? "default" : "pointer", whiteSpace: "nowrap", transition: "all .15s" }}
+                          >
+                            ↑
+                          </button>
+                        </div>
                       </div>
                     </>
                   )}
