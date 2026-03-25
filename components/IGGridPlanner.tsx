@@ -4065,8 +4065,16 @@ If asked to reorder by vibe AND images exist: state the logic in one sentence, t
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                style={{ width: 26, height: 26, borderRadius: 4, background: "#0a0a0a", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9, fontFamily: "sans-serif", fontWeight: 700, letterSpacing: 0.5 }}
-                              >CD</motion.div>
+                                style={{ flexShrink: 0, paddingTop: 2 }}
+                              >
+                                <DotLoader
+                                  frames={aiSmileyFrames}
+                                  className="gap-px"
+                                  repeatCount={-1}
+                                  duration={250}
+                                  dotClassName="bg-black/8 [&.active]:bg-black/50 size-[2.5px] rounded-full"
+                                />
+                              </motion.div>
                               <ChatBubble variant="ai" style={{ maxWidth: "88%", color: "#333", fontSize: 12.5, lineHeight: 1.6, fontFamily: "sans-serif" }}>
                                 {renderAiText(m.text)}
                               </ChatBubble>
